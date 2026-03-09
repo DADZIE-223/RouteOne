@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum RouteStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+}
+
+model User {
+  id            String         @id @default(uuid())
+  full_name     String
+  email         String         @unique
+  phone         String
+  password_hash String
+  role          Role           @default(USER)
+  created_at    DateTime       @default(now())
+  subscriptions Subscription[]
+  payments      Payment[]
+  reservations  Reservation[]
+}
+
+model Route {
+  id                       String         @id @default(uuid())
+  name                     String
+  origin                   String
+  destination              String
+  price_monthly            Decimal
+  departure_time_morning   String
+  departure_time_evening   String
+  capacity                 Int
+  status                   RouteStatus
+  pickup_points            PickupPoint[]
+  subscriptions            Subscription[]
+  reservations             Reservation[]
+  notifications            Notification[]
+}
+
+model PickupPoint {
+  id             String   @id @default(uuid())
+  route_id       String
+  name           String
+  sequence_order Int
+  estimated_time String
+  route          Route    @relation(fields: [route_id], references: [id], onDelete: Cascade)
+}
+
+model Bus {
+  id                String        @id @default(uuid())
+  plate_number      String        @unique
+  capacity          Int
+  status            String
+  assigned_route_id String?
+  reservations      Reservation[]
+}
+
+model Subscription {
+  id              String      @id @default(uuid())
+  user_id         String
+  route_id        String
+  pickup_point_id String
+  status          String
+  start_date      DateTime
+  end_date        DateTime
+  user            User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  route           Route       @relation(fields: [route_id], references: [id], onDelete: Cascade)
+  payments        Payment[]
+
+  @@unique([user_id, route_id, status])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  user_id        String
+  subscription_id String
+  amount         Decimal
+  status         PaymentStatus
+  payment_method String
+  paid_at        DateTime?
+  user           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  subscription   Subscription  @relation(fields: [subscription_id], references: [id], onDelete: Cascade)
+}
+
+model Reservation {
+  id               String   @id @default(uuid())
+  user_id          String
+  route_id         String
+  bus_id           String
+  seat_number      Int
+  reservation_date DateTime
+  status           String
+  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  route            Route    @relation(fields: [route_id], references: [id], onDelete: Cascade)
+  bus              Bus      @relation(fields: [bus_id], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  route_id   String
+  title      String
+  message    String
+  created_at DateTime @default(now())
+  route      Route    @relation(fields: [route_id], references: [id], onDelete: Cascade)
+}
